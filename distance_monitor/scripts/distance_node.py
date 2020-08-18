@@ -4,21 +4,71 @@ import rospy
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from loc_msgs.srv import (GetClosest, GetClosestResponse, GetDistance, GetDistanceResponse)
+from gazebo_msgs.srv import (GetWorldProperties, GetModelState)
 import math
+
+class GazeboUtils():
+    def __init__(self):
+        pass
+
+    def getWorldProperties(self):
+        try:
+            get_world_properties = rospy.ServiceProxy("/gazebo/get_world_properties", GetWorldProperties)      
+            wp = get_world_properties()
+            if wp.success:
+                return wp
+            else:
+                rospy.logwarn(wp.status_message)    
+                return None
+        except rospy.ServiceException, e:
+            print "/gazebo/get_world_properties %s"%e
+
+    def getModelState(self, model_name, relative_entity_name='world'):
+        try:
+            get_model_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
+            ms = get_model_state(model_name, relative_entity_name)
+            if ms.success:
+                return ms
+            else:
+                print ms.status_message
+                return None
+        except rospy.ServiceException, e:
+            print "/gazebo/get_model_state %s"%e
+
+    def get_model_pose(self, model_name):
+        ms = getModelState(model_name)
+        if ms:
+            return ms.pose
+        else:
+            return None
+
 
 class DistanceMonitorServer():
 
     def __init__(self):
-        self._landmarks = {
-            "brick_box_3x1x3": (3.0, 0.0), 
-            "box_0": (1.13615, 6.00198), 
-            "sphere_0": (2.45136, -3.96208), 
-            "cylinder_0": (-2.45033023042, 0.837319245163)
-        }
+        self._landmarks = {}
+        self._exclude = ['ground_plane', 'mobile_base']
+        self._utils = GazeboUtils()
         self._position = Point()
         self._odometry = rospy.Subscriber('/odom', Odometry, self.odometry_callback)
         self._getClosestSrv = rospy.Service('/distance_monitor_server/get_closest', GetClosest, self.get_closest_srv)
         self._getDistanceSrv = rospy.Service('/distance_monitor_server/get_distance', GetDistance, self.get_distance_srv)
+
+    def _init(self):
+        wp = self._utils.getWorldProperties()
+        for model in wp.model_names:
+            if model not in self._exclude:
+                # ms = self._utils.get_model_pose(model)
+                ms = self._utils.getModelState(model)
+                position =  (ms.pose.position.x, ms.pose.position.y)
+                self._landmarks.update({ model: position})
+                # self._landmarks.update(model, [ms.point.x, ms.point.y, ms.point.z])
+        rospy.loginfo("landmarks detected: ")
+        rospy.loginfo(self._landmarks)
+
+    def _refresh_landmarks(self):
+        self._landmarks = {}
+        self._init()   
 
     def odometry_callback(self, msg):
         self._position = msg.pose.pose.position
@@ -57,6 +107,7 @@ def main():
     rospy.init_node('distance_monitor_server')
     rospy.loginfo('Initializing Distance Monitor Services...')
     monitor = DistanceMonitorServer()
+    monitor._init()
     rospy.spin()
 
 if __name__ == '__main__':
