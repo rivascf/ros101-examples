@@ -1,0 +1,17 @@
+digraph G {
+node [shape=box];
+"base_link" [label="base_link"];
+"link_1" [label="link_1"];
+"link_2" [label="link_2"];
+"link_3" [label="link_3"];
+"link_4" [label="link_4"];
+node [shape=ellipse, color=blue, fontcolor=blue];
+"base_link" -> "base_to_link1" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"base_to_link1" -> "link_1"
+"base_link" -> "base_to_link2" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"base_to_link2" -> "link_2"
+"base_link" -> "base_to_link3" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"base_to_link3" -> "link_3"
+"base_link" -> "base_to_link4" [label="xyz: 0 0 0 \nrpy: 0 -0 0"]
+"base_to_link4" -> "link_4"
+}
